@@ -1,0 +1,3 @@
+dependencies:
+  wifi_connect:
+    path: ../../shared_components/wifi_connect

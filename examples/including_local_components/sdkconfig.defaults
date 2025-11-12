@@ -1,0 +1,11 @@
+#
+# Production ESP32 Playground
+#
+
+#
+# WiFi
+#
+CONFIG_PRODESP32_PLAYGROUND_SSID="SIDNET_IOT"
+CONFIG_PRODESP32_PLAYGROUND_WIFI_PASSWORD="juicero2"
+# end of WiFi
+# end of Production ESP32 Playground

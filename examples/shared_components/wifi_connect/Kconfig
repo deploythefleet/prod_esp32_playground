@@ -1,0 +1,18 @@
+menu "Production ESP32 Playground"
+
+    menu "WiFi"
+
+        config PRODESP32_PLAYGROUND_SSID
+        string "SSID"
+        default "YOUR_SSID"
+        help
+            The SSID of your WiFi network
+
+        config PRODESP32_PLAYGROUND_WIFI_PASSWORD
+        string "Password"
+        default "YOUR_PASSWORD"
+        help
+            The password to your WiFi network
+
+    endmenu
+endmenu
