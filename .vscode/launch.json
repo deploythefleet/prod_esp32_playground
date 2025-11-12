@@ -1,0 +1,36 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Step Debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/opt/esp/tools/xtensa-esp-elf-gdb/16.2_20250324/xtensa-esp-elf-gdb/bin/xtensa-esp32s3-elf-gdb",
+            "miDebuggerServerAddress": "localhost:3333",
+            "program": "${workspaceFolder}/${config:esp32.activeProject}/build/${config:esp32.activeProjectName}.elf",
+            "cwd": "${workspaceFolder}/${config:esp32.activeProject}",
+            "stopAtEntry": true,
+            "preLaunchTask": "Start QEMU",
+            "postDebugTask": "Stop QEMU",
+            "setupCommands": [
+                {
+                    "text": "set remote hardware-watchpoint-limit 2"
+                },
+                {
+                    "text": "maintenance flush register-cache"
+                },
+            ],
+            "logging": {
+                "exceptions": true,
+                "engineLogging": false,
+                "moduleLoad": true,
+                "programOutput": true,
+                "trace": true,
+                "traceResponse": false
+            }
+        }
+
+
+    ]
+}

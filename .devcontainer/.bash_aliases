@@ -56,6 +56,12 @@ setchip() {
         local selected_target="${targets[$((choice-1))]}"
         export IDF_TARGET="$selected_target"
         
+        # Update VS Code workspace setting
+        local settings_file="/workspaces/prod_esp32_playground/.vscode/settings.json"
+        if [ -f "$settings_file" ]; then
+            sed -i "s/\"idf.target\": \".*\"/\"idf.target\": \"$selected_target\"/" "$settings_file"
+        fi
+        
         echo "✅ IDF_TARGET set to: $IDF_TARGET"
         echo ""
         
@@ -66,4 +72,106 @@ setchip() {
     
     # Update the prompt to reflect the new target
     update_prompt
+}
+
+# Function to set active debug project
+debugthis() {
+    # 1. Check if CMakeLists.txt exists in current directory
+    if [ ! -f "CMakeLists.txt" ]; then
+        echo "❌ Error: No CMakeLists.txt found in current directory"
+        return 1
+    fi
+    
+    # 2. Extract project name from project(...) line
+    local project_name=$(grep -oP '^\s*project\(\s*\K[^)]+' CMakeLists.txt | head -1)
+    if [ -z "$project_name" ]; then
+        echo "❌ Error: Could not find project() in CMakeLists.txt"
+        return 1
+    fi
+    
+    # 3. Get relative path from workspace root
+    local workspace_root="/workspaces/prod_esp32_playground"
+    local current_dir=$(pwd)
+    local relative_path="${current_dir#$workspace_root/}"
+    
+    # 4. Validate we're in the workspace
+    if [ "$relative_path" = "$current_dir" ]; then
+        echo "❌ Error: Not in workspace directory"
+        return 1
+    fi
+    
+    # 5. Update VS Code settings
+    local settings_file="$workspace_root/.vscode/settings.json"
+    
+    # Create settings file if it doesn't exist
+    if [ ! -f "$settings_file" ]; then
+        mkdir -p "$workspace_root/.vscode"
+        cat > "$settings_file" << EOF
+{
+    "idf.target": "${IDF_TARGET:-esp32s3}",
+    "esp32.activeProject": "$relative_path",
+    "esp32.activeProjectName": "$project_name"
+}
+EOF
+        echo "✅ Created settings file and set debug target to: $project_name ($relative_path)"
+        return 0
+    fi
+    
+    # Use | as delimiter for sed since path contains /
+    sed -i "s|\"esp32.activeProject\": \".*\"|\"esp32.activeProject\": \"$relative_path\"|" "$settings_file"
+    sed -i "s/\"esp32.activeProjectName\": \".*\"/\"esp32.activeProjectName\": \"$project_name\"/" "$settings_file"
+    
+    echo "✅ Debug target set to: $project_name ($relative_path)"
+    echo ""
+}
+
+# Function to create a new ESP32 project from minimal_build template
+np() {
+    local workspace_root="/workspaces/prod_esp32_playground"
+    local examples_dir="$workspace_root/examples"
+    local template_dir="$examples_dir/minimal_build"
+    
+    # Prompt for project name
+    read -p "Enter new project name: " project_name
+    
+    # Validate project name is not empty
+    if [ -z "$project_name" ]; then
+        echo "❌ Error: Project name cannot be empty"
+        return 1
+    fi
+    
+    # Create new project directory path
+    local new_project_dir="$examples_dir/$project_name"
+    
+    # Check if directory already exists
+    if [ -d "$new_project_dir" ]; then
+        echo "❌ Error: Project directory already exists: $new_project_dir"
+        return 1
+    fi
+    
+    # Copy minimal_build to new project directory
+    echo "📁 Creating new project from minimal_build template..."
+    cp -r "$template_dir" "$new_project_dir"
+    
+    if [ $? -ne 0 ]; then
+        echo "❌ Error: Failed to copy template"
+        return 1
+    fi
+    
+    # Remove the build folder if it exists
+    if [ -d "$new_project_dir/build" ]; then
+        rm -rf "$new_project_dir/build"
+    fi
+    
+    # Update README.md with just the project name as H1
+    echo "# $project_name" > "$new_project_dir/README.md"
+    
+    # Update CMakeLists.txt to use new project name
+    sed -i "s/project(minimal_build)/project($project_name)/" "$new_project_dir/CMakeLists.txt"
+    
+    echo "✅ Project '$project_name' created successfully at: $new_project_dir"
+    echo ""
+    
+    # Change to the new project directory
+    cd "$new_project_dir"
 }

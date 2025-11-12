@@ -1,0 +1,53 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start QEMU",
+            "type": "shell",
+            "command": "idf.py",
+            "args": [
+                "qemu",
+                "--gdb",
+                "monitor"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/${config:esp32.activeProject}",
+                "env": {
+                    "IDF_TARGET": "${config:idf.target}"
+                }
+            },
+            "isBackground": true,
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "close": true
+            },
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": ".",
+                    "file": 1,
+                    "location": 2,
+                    "message": 3
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": ".",
+                    "endsPattern": "qemu-system-xtensa"
+                }
+            }
+        },
+        {
+            "label": "Stop QEMU",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-c",
+                "pkill -TERM -f 'idf.py qemu' || true"
+            ],
+            "presentation": {
+                "reveal": "never",
+                "close": true
+            }
+        }
+    ]
+}
