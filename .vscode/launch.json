@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             "MIMode": "gdb",
-            "miDebuggerPath": "/opt/esp/tools/xtensa-esp-elf-gdb/16.2_20250324/xtensa-esp-elf-gdb/bin/xtensa-esp32s3-elf-gdb",
+            "miDebuggerPath": "${config:esp32.gdbPath}",
             "miDebuggerServerAddress": "localhost:3333",
             "program": "${workspaceFolder}/${config:esp32.activeProject}/build/${config:esp32.activeProjectName}.elf",
             "cwd": "${workspaceFolder}/${config:esp32.activeProject}",

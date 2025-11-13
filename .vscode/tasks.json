@@ -32,7 +32,7 @@
                 "background": {
                     "activeOnStart": true,
                     "beginsPattern": ".",
-                    "endsPattern": "qemu-system-xtensa"
+                    "endsPattern": "Waiting for GDB to connect"
                 }
             }
         },

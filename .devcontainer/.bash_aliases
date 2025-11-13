@@ -56,10 +56,25 @@ setchip() {
         local selected_target="${targets[$((choice-1))]}"
         export IDF_TARGET="$selected_target"
         
+        # Determine GDB path based on target
+        local gdb_path
+        if [ "$selected_target" = "esp32c3" ]; then
+            gdb_path="/opt/esp/tools/riscv32-esp-elf-gdb/16.2_20250324/riscv32-esp-elf-gdb/bin/riscv32-esp-elf-gdb"
+        else
+            # For esp32 and esp32s3 (both use xtensa)
+            gdb_path="/opt/esp/tools/xtensa-esp-elf-gdb/16.2_20250324/xtensa-esp-elf-gdb/bin/xtensa-esp32s3-elf-gdb"
+        fi
+        
         # Update VS Code workspace setting
         local settings_file="/workspaces/prod_esp32_playground/.vscode/settings.json"
         if [ -f "$settings_file" ]; then
             sed -i "s/\"idf.target\": \".*\"/\"idf.target\": \"$selected_target\"/" "$settings_file"
+            sed -i "s|\"esp32.gdbPath\": \".*\"|\"esp32.gdbPath\": \"$gdb_path\"|" "$settings_file"
+            
+            # Add gdbPath if it doesn't exist
+            if ! grep -q "esp32.gdbPath" "$settings_file"; then
+                sed -i "s/\"idf.target\": \".*\"/&,\n    \"esp32.gdbPath\": \"$gdb_path\"/" "$settings_file"
+            fi
         fi
         
         echo "✅ IDF_TARGET set to: $IDF_TARGET"
@@ -100,7 +115,16 @@ debugthis() {
         return 1
     fi
     
-    # 5. Update VS Code settings
+    # 5. Determine GDB path based on target
+    local gdb_path
+    if [ "${IDF_TARGET}" = "esp32c3" ]; then
+        gdb_path="/opt/esp/tools/riscv32-esp-elf-gdb/16.2_20250324/riscv32-esp-elf-gdb/bin/riscv32-esp-elf-gdb"
+    else
+        # For esp32 and esp32s3 (both use xtensa)
+        gdb_path="/opt/esp/tools/xtensa-esp-elf-gdb/16.2_20250324/xtensa-esp-elf-gdb/bin/xtensa-esp32s3-elf-gdb"
+    fi
+    
+    # 6. Update VS Code settings
     local settings_file="$workspace_root/.vscode/settings.json"
     
     # Create settings file if it doesn't exist
@@ -110,7 +134,8 @@ debugthis() {
 {
     "idf.target": "${IDF_TARGET:-esp32s3}",
     "esp32.activeProject": "$relative_path",
-    "esp32.activeProjectName": "$project_name"
+    "esp32.activeProjectName": "$project_name",
+    "esp32.gdbPath": "$gdb_path"
 }
 EOF
         echo "✅ Created settings file and set debug target to: $project_name ($relative_path)"
@@ -120,6 +145,12 @@ EOF
     # Use | as delimiter for sed since path contains /
     sed -i "s|\"esp32.activeProject\": \".*\"|\"esp32.activeProject\": \"$relative_path\"|" "$settings_file"
     sed -i "s/\"esp32.activeProjectName\": \".*\"/\"esp32.activeProjectName\": \"$project_name\"/" "$settings_file"
+    sed -i "s|\"esp32.gdbPath\": \".*\"|\"esp32.gdbPath\": \"$gdb_path\"|" "$settings_file"
+    
+    # Add gdbPath if it doesn't exist
+    if ! grep -q "esp32.gdbPath" "$settings_file"; then
+        sed -i "s|\"esp32.activeProjectName\": \".*\"|&,\n    \"esp32.gdbPath\": \"$gdb_path\"|" "$settings_file"
+    fi
     
     echo "✅ Debug target set to: $project_name ($relative_path)"
     echo ""
