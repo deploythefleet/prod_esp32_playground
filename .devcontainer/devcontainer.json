@@ -15,7 +15,38 @@
                         "icon": "terminal-bash"
                     }
                 },
-                "terminal.integrated.defaultProfile.linux": "bash"
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "editor.defaultFormatter": "esbenp.prettier-vscode",
+				"[markdown]": {
+					"editor.rulers": [120],
+					"editor.wordWrap": "wordWrapColumn",
+					"editor.wordWrapColumn": 120,
+					"diffEditor.ignoreTrimWhitespace": false,
+					"editor.quickSuggestions": {
+						"comments": "off",
+						"strings": "off",
+						"other": "off"
+					}
+				},
+				"[c]": {
+					"editor.formatOnSave": true,
+					"editor.defaultFormatter": "ms-vscode.cpptools"
+				},
+				"[cpp]": {
+					"editor.formatOnSave": true,
+					"editor.defaultFormatter": "ms-vscode.cpptools"
+				},
+				"[h]": {
+					"editor.formatOnSave": true,
+					"editor.defaultFormatter": "ms-vscode.cpptools"
+				},
+				"[hpp]": {
+					"editor.formatOnSave": true,
+					"editor.defaultFormatter": "ms-vscode.cpptools"
+				},
+				"workbench.colorCustomizations": {
+					"editorRuler.foreground": "#868686"
+				}
             },
 
             // Install relevant extensions in the dev container
@@ -25,7 +56,8 @@
                 "ms-vscode.vscode-serial-monitor",
                 "ms-vscode.hexeditor",
                 "github.copilot",
-                "bierner.markdown-mermaid"
+                "bierner.markdown-mermaid",
+                "esbenp.prettier-vscode"
             ]
         }
     },
@@ -35,7 +67,7 @@
     // NOTE: This only works on Linux
     "runArgs": [
         // Use this if you are connected to your ESP32 via TTL-USB
-        "--device=/dev/ttyUSB0"
+        // "--device=/dev/ttyUSB0"
         // Use this if you are connected to your ESP32 via JTAG and wish to debug
         // "--device=/dev/bus/usb"
     ],

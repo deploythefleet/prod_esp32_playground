@@ -10,4 +10,4 @@ bool is_wifi_connected();
 }
 #endif
 
-#endif //PRODESP32_WIFI_CONNECT_H
+#endif  // PRODESP32_WIFI_CONNECT_H
