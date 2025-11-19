@@ -199,6 +199,9 @@ np() {
     
     # Update CMakeLists.txt to use new project name
     sed -i "s/project(minimal_build)/project($project_name)/" "$new_project_dir/CMakeLists.txt"
+
+    # Update main.cpp to reflect new project name
+    sed -i "s/Hello, Minimal Build!/Hello, $project_name/" "$new_project_dir/main/main.cpp"
     
     echo "✅ Project '$project_name' created successfully at: $new_project_dir"
     echo ""
