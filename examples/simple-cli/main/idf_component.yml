@@ -1,0 +1,3 @@
+dependencies:
+  simple_cli:
+    path: ../../shared_components/simple_cli

@@ -3,3 +3,8 @@ BasedOnStyle: Google
 IndentWidth: 2
 UseTab: Never
 ColumnLimit: 120
+BraceWrapping:
+  AfterControlStatement: Never
+  AfterFunction: false
+  BeforeElse: true
+BreakBeforeBraces: Custom
