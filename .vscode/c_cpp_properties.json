@@ -6,12 +6,14 @@
         "cppStandard": "c++20",
         "includePath": [
           "/opt/esp/idf/components/**",
-          "${workspaceFolder}/**"
+          "${workspaceFolder}/**",
+          "${workspaceFolder}/**/managed_components/**"
         ],
         "browse": {
           "path": [
             "/opt/esp/idf/components",
-            "${workspaceFolder}"
+            "${workspaceFolder}",
+            "${workspaceFolder}/**/managed_components/**"
           ],
           "limitSymbolsToIncludedHeaders": false
         }

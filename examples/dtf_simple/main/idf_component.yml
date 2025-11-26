@@ -1,0 +1,10 @@
+## IDF Component Manager Manifest File
+dependencies:
+  ## Required IDF version
+  idf:
+    version: '>=4.1.0'
+  wifi_connect:
+    path: ../../shared_components/wifi_connect
+  dtf_sdk:
+    git: https://github.com/deploythefleet/dtf_sdk.git
+    version: v2.0.2
