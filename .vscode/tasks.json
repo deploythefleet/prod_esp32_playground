@@ -31,8 +31,8 @@
                 },
                 "background": {
                     "activeOnStart": true,
-                    "beginsPattern": ".",
-                    "endsPattern": "Waiting for GDB to connect"
+                    "beginsPattern": "^Executing action: qemu$",
+                    "endsPattern": "^Waiting for GDB to connect"
                 }
             }
         },

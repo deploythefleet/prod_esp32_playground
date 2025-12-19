@@ -208,4 +208,7 @@ np() {
     
     # Change to the new project directory
     cd "$new_project_dir"
+    
+    # Configure debugger to point to this new project
+    debugthis
 }
