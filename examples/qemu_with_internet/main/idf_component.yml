@@ -1,0 +1,4 @@
+dependencies:
+  qemu_internet:
+    path: ../../shared_components/qemu_internet
+  espressif/ethernet_init: '*'
