@@ -1,0 +1,15 @@
+idf_component_register(
+    SRCS
+        "src/mcp_server.c"
+        "src/mcp_tool.c"
+        "src/mcp_protocol.c"
+        "src/mcp_transport.c"
+        "src/mcp_schema.c"
+        "transports/mcp_transport_http.c"
+    INCLUDE_DIRS
+        "include"
+        "transports"
+    REQUIRES
+        esp_http_server
+        json
+)

@@ -1,0 +1,5 @@
+dependencies:
+  mcp_server:
+    path: ../../shared_components/mcp_server
+  wifi_connect:
+    path: ../../shared_components/wifi_connect
