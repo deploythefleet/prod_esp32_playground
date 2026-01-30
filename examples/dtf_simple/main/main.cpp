@@ -25,6 +25,9 @@ extern "C" void app_main(void) {
     ret = nvs_flash_init();
   }
   ESP_ERROR_CHECK(ret);
+  // Initialize network interface
+  ESP_ERROR_CHECK(esp_netif_init());
+  ESP_ERROR_CHECK(esp_event_loop_create_default());
 
   printf("Current firmware version: %s\n", dtf_get_active_fw_version());
   printf("Connecting to WiFi\n");
