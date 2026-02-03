@@ -5,7 +5,7 @@ ARG USER=root
 # Use the official Espressif IDF Docker image as base
 # ALWAYS use a tagged version (starts with 'v') to 
 # ensure build reproducibility. Release tags will change.
-FROM espressif/idf:v5.5.1
+FROM espressif/idf:v5.5.2
 
 # Import global arguments
 ARG DEBIAN_FRONTEND

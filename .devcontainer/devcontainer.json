@@ -1,5 +1,5 @@
 {
-    "name": "ESP-IDF v5.5.1",
+    "name": "ESP-IDF v5.5.2",
     "build": {
         "dockerfile": "Dockerfile",
         "args": {
