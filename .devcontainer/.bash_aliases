@@ -84,6 +84,9 @@ _build_preparation() {
     fi
     # 3. Check if current build target matches selected target, if not, configure and build the project
     local current_target=$(_get_config_parameter "CONFIG_IDF_TARGET" "build/sdkconfig")
+    if [ -z "$current_target" ]; then
+        current_target=$(_get_config_parameter "CONFIG_IDF_TARGET" "sdkconfig")
+    fi
     if [ "$current_target" != "$target" ]; then
         _log "🔧 Configuring and building the project for debugging with $target..."
         idf.py set-target "$target" > /dev/null 2>&1
@@ -168,7 +171,10 @@ build() {
     idf.py build
 }
 
-
+# Wrapper for sudo that preserves user environment PATH, which is necessary for using ESP-IDF tools with sudo
+psudo() {
+    sudo env PATH="$PATH" $@
+}
 
 
 # Helper functions
@@ -278,6 +284,7 @@ _update_vscode_settings() {
     _add_or_replace_json_value "idf.target" "${target}" "$settings_file"
     _add_or_replace_json_value "esp32.activeProject" "$relative_path" "$settings_file"
     _add_or_replace_json_value "esp32.activeProjectName" "$project_name" "$settings_file"
+    _add_or_replace_json_value "cmake.sourceDirectory" "$PWD/main" "$settings_file"
 
     local gdb_path=$(_get_debugger "$target")
     if [ $? -ne 0 ]; then
