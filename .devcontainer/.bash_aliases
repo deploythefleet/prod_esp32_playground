@@ -11,8 +11,14 @@ update_prompt() {
 # Set PROMPT_COMMAND to update prompt before each command
 PROMPT_COMMAND="update_prompt"
 
+workspace_root="/workspaces/prod_esp32_playground"
+
+
+# User commands
+
 # Function to set ESP32 target interactively
 setchip() {
+    local selected_target="$1"
     local targets=(
         "esp32"
         "esp32s2"
@@ -25,190 +31,264 @@ setchip() {
         "esp32c5"
         "esp32c61"
     )
-    
-    while true; do
-        echo "┌─────────────────────────────────────────────────────┐"
-        echo "│                ESP32 Target Selection               │"
-        echo "├─────────────────────────────────────────────────────┤"
-        echo "│  1) esp32        │  6) esp32c6                      │"
-        echo "│  2) esp32s2      │  7) esp32h2                      │"
-        echo "│  3) esp32c3      │  8) esp32p4                      │"
-        echo "│  4) esp32s3      │  9) esp32c5                      │"
-        echo "│  5) esp32c2      │ 10) esp32c61                     │"
-        echo "└─────────────────────────────────────────────────────┘"
-        echo
-        read -p "Select target (1-${#targets[@]}) or 'q' to quit: " choice
-        
-        # Check if user wants to quit
-        if [[ "$choice" == "q" ]] || [[ "$choice" == "Q" ]]; then
-            echo "Selection cancelled."
-            return 0
+
+    if [ -n "$selected_target" ]; then
+        if [[ ! " ${targets[@]} " =~ " ${selected_target} " ]]; then
+            _log "❌ Invalid target: $selected_target. Valid targets are: ${targets[*]}"
+            return 1
         fi
-        
-        # Validate input
-        if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#targets[@]}" ]; then
-            echo "❌ Error: Invalid selection. Please choose a number between 1 and ${#targets[@]}, or 'q' to quit."
-            echo
-            continue
-        fi
-        
-        # Set the target (array is 0-indexed, user input is 1-indexed)
-        local selected_target="${targets[$((choice-1))]}"
-        export IDF_TARGET="$selected_target"
-        
-        # Determine GDB path based on target
-        local gdb_path
-        if [ "$selected_target" = "esp32c3" ]; then
-            gdb_path="/opt/esp/tools/riscv32-esp-elf-gdb/16.2_20250324/riscv32-esp-elf-gdb/bin/riscv32-esp-elf-gdb"
-        else
-            # For esp32 and esp32s3 (both use xtensa)
-            gdb_path="/opt/esp/tools/xtensa-esp-elf-gdb/16.2_20250324/xtensa-esp-elf-gdb/bin/xtensa-esp32s3-elf-gdb"
-        fi
-        
-        # Update VS Code workspace setting
-        local settings_file="/workspaces/prod_esp32_playground/.vscode/settings.json"
-        if [ -f "$settings_file" ]; then
-            sed -i "s/\"idf.target\": \".*\"/\"idf.target\": \"$selected_target\"/" "$settings_file"
-            sed -i "s|\"esp32.gdbPath\": \".*\"|\"esp32.gdbPath\": \"$gdb_path\"|" "$settings_file"
-            
-            # Add gdbPath if it doesn't exist
-            if ! grep -q "esp32.gdbPath" "$settings_file"; then
-                sed -i "s/\"idf.target\": \".*\"/&,\n    \"esp32.gdbPath\": \"$gdb_path\"/" "$settings_file"
+    else
+        while true; do
+            _print_table "     ESP32 Target Selection" targets 2
+            read -p "Select target (1-${#targets[@]}) or 'q' to quit: " choice
+            # Check if user wants to quit
+            if [[ "$choice" == "q" ]] || [[ "$choice" == "Q" ]]; then
+                echo "Selection cancelled."
+                return 0
             fi
-        fi
-        
-        echo "✅ IDF_TARGET set to: $IDF_TARGET"
-        echo ""
-        
-        # Update the prompt to reflect the new target
-        update_prompt
-        break
-    done
-    
+            # Validate input
+            if [[ ! "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#targets[@]}" ]; then
+                _log "❌ Invalid selection. Please choose a number between 1 and ${#targets[@]}, or 'q' to quit."
+                _log ""
+                continue
+            fi
+            selected_target="${targets[$((choice-1))]}"
+            break
+        done
+    fi
+    # Set the target (array is 0-indexed, user input is 1-indexed)
+    export IDF_TARGET="$selected_target"
+
+    # Determine GDB path based on target
+    _update_vscode_settings "$selected_target"
+
+    _log "✅ IDF_TARGET set to: $IDF_TARGET"
+
     # Update the prompt to reflect the new target
     update_prompt
 }
 
-# Function to set active debug project
-debugthis() {
+_build_preparation() {
+    local build_on_change="$1"
+
     # 1. Check if CMakeLists.txt exists in current directory
     if [ ! -f "CMakeLists.txt" ]; then
-        echo "❌ Error: No CMakeLists.txt found in current directory"
+        _log "❌ No CMakeLists.txt found in current directory"
         return 1
     fi
-    
-    # 2. Extract project name from project(...) line
-    local project_name=$(grep -oP '^\s*project\(\s*\K[^)]+' CMakeLists.txt | head -1)
-    if [ -z "$project_name" ]; then
-        echo "❌ Error: Could not find project() in CMakeLists.txt"
+    # 2. Update VS Code settings
+    local target="${IDF_TARGET:-esp32s3}"
+    _update_vscode_settings "$target"
+    if [ $? -ne 0 ]; then
         return 1
     fi
-    
-    # 3. Get relative path from workspace root
-    local workspace_root="/workspaces/prod_esp32_playground"
-    local current_dir=$(pwd)
-    local relative_path="${current_dir#$workspace_root/}"
-    
-    # 4. Validate we're in the workspace
-    if [ "$relative_path" = "$current_dir" ]; then
-        echo "❌ Error: Not in workspace directory"
-        return 1
+    # 3. Check if current build target matches selected target, if not, configure and build the project
+    local current_target=$(_get_config_parameter "CONFIG_IDF_TARGET" "build/sdkconfig")
+    if [ -z "$current_target" ]; then
+        current_target=$(_get_config_parameter "CONFIG_IDF_TARGET" "sdkconfig")
     fi
-    
-    # 5. Determine GDB path based on target
-    local gdb_path
-    if [ "${IDF_TARGET}" = "esp32c3" ]; then
-        gdb_path="/opt/esp/tools/riscv32-esp-elf-gdb/16.2_20250324/riscv32-esp-elf-gdb/bin/riscv32-esp-elf-gdb"
-    else
-        # For esp32 and esp32s3 (both use xtensa)
-        gdb_path="/opt/esp/tools/xtensa-esp-elf-gdb/16.2_20250324/xtensa-esp-elf-gdb/bin/xtensa-esp32s3-elf-gdb"
+    if [ "$current_target" != "$target" ]; then
+        _log "🔧 Configuring and building the project for debugging with $target..."
+        idf.py set-target "$target" > /dev/null 2>&1
+
+        export CCACHE_BASEDIR=$PWD
+        if [ -n "$build_on_change" ]; then
+            idf.py build > /dev/null 2>&1
+        fi
     fi
-    
-    # 6. Update VS Code settings
-    local settings_file="$workspace_root/.vscode/settings.json"
-    
-    # Create settings file if it doesn't exist
-    if [ ! -f "$settings_file" ]; then
-        mkdir -p "$workspace_root/.vscode"
-        cat > "$settings_file" << EOF
-{
-    "idf.target": "${IDF_TARGET:-esp32s3}",
-    "esp32.activeProject": "$relative_path",
-    "esp32.activeProjectName": "$project_name",
-    "esp32.gdbPath": "$gdb_path"
 }
-EOF
-        echo "✅ Created settings file and set debug target to: $project_name ($relative_path)"
-        return 0
-    fi
-    
-    # Use | as delimiter for sed since path contains /
-    sed -i "s|\"esp32.activeProject\": \".*\"|\"esp32.activeProject\": \"$relative_path\"|" "$settings_file"
-    sed -i "s/\"esp32.activeProjectName\": \".*\"/\"esp32.activeProjectName\": \"$project_name\"/" "$settings_file"
-    sed -i "s|\"esp32.gdbPath\": \".*\"|\"esp32.gdbPath\": \"$gdb_path\"|" "$settings_file"
-    
-    # Add gdbPath if it doesn't exist
-    if ! grep -q "esp32.gdbPath" "$settings_file"; then
-        sed -i "s|\"esp32.activeProjectName\": \".*\"|&,\n    \"esp32.gdbPath\": \"$gdb_path\"|" "$settings_file"
-    fi
-    
-    echo "✅ Debug target set to: $project_name ($relative_path)"
-    echo ""
+
+# Function to set active debug project
+debugthis() {
+    _build_preparation "build_on_change"
 }
 
 # Function to create a new ESP32 project from minimal_build template
 np() {
-    local workspace_root="/workspaces/prod_esp32_playground"
+    local project_name="$1"
+
     local examples_dir="$workspace_root/examples"
     local template_dir="$examples_dir/minimal_build"
-    
-    # Prompt for project name
-    read -p "Enter new project name: " project_name
-    
-    # Validate project name is not empty
-    if [ -z "$project_name" ]; then
-        echo "❌ Error: Project name cannot be empty"
-        return 1
+
+    if [[ -z "${project_name// }" ]]; then
+        read -p "Enter new project name: " project_name
+
+        # Validate project name is not empty
+        if [[ -z "${project_name// }" ]]; then
+            _log "❌ Project name cannot be empty"
+            return 1
+        fi
     fi
+    project_name="${project_name// }"
     
     # Create new project directory path
     local new_project_dir="$examples_dir/$project_name"
     
     # Check if directory already exists
     if [ -d "$new_project_dir" ]; then
-        echo "❌ Error: Project directory already exists: $new_project_dir"
+        _log "❌ Project directory already exists: $new_project_dir"
         return 1
     fi
-    
+
     # Copy minimal_build to new project directory
-    echo "📁 Creating new project from minimal_build template..."
+    _log "📁 Creating new project '$project_name' from minimal_build template..."
     cp -r "$template_dir" "$new_project_dir"
     
     if [ $? -ne 0 ]; then
-        echo "❌ Error: Failed to copy template"
+        _log " ❌ Failed to copy template"
         return 1
     fi
-    
+
     # Remove the build folder if it exists
     if [ -d "$new_project_dir/build" ]; then
         rm -rf "$new_project_dir/build"
     fi
-    
+
     # Update README.md with just the project name as H1
     echo "# $project_name" > "$new_project_dir/README.md"
     
     # Update CMakeLists.txt to use new project name
     sed -i "s/project(minimal_build)/project($project_name)/" "$new_project_dir/CMakeLists.txt"
-
+    
     # Update main.cpp to reflect new project name
-    sed -i "s/Hello, Minimal Build!/Hello, $project_name/" "$new_project_dir/main/main.cpp"
+    sed -i "s/Hello, Minimal Build!/Hello, $project_name!/" "$new_project_dir/main/main.cpp"
     
-    echo "✅ Project '$project_name' created successfully at: $new_project_dir"
-    echo ""
-    
+    _log "✅ Project '$project_name' created successfully at: $new_project_dir"
+
     # Change to the new project directory
     cd "$new_project_dir"
-    
-    # Configure debugger to point to this new project
-    debugthis
+}
+
+
+# ccache configuration
+export CCACHE_NOHASHDIR=true                # Avoid hashing the full path of source files, which can cause cache misses in certain build systems
+export CMAKE_C_COMPILER_LAUNCHER=ccache     # Use ccache for C compilation
+export CMAKE_CXX_COMPILER_LAUNCHER=ccache   # Use ccache for C++ compilation
+ccache -M 10G > /dev/null 2>&1              # Set maximum cache size to 10GB, does not hurt to set it every time on terminal init
+
+build() {
+    _build_preparation
+    idf.py build
+}
+
+# Wrapper for sudo that preserves user environment PATH, which is necessary for using ESP-IDF tools with sudo
+psudo() {
+    sudo env PATH="$PATH" $@
+}
+
+
+# Helper functions
+
+_log() {
+    echo "$1" >&2
+}
+
+# Function to print a table with dynamic column widths
+# Arguments:
+# 1. Table title (string)
+# 2. Array of table rows (passed by name using nameref)
+# 3. Number of columns (integer)
+_print_table() {
+    local table_title=$1
+    local -n table=$2
+    local columns_count=$3
+
+    local table_row_count=${#table[@]}
+    # Calculate column widths
+    local max_width=0
+    for ((i=0; i<$table_row_count; i++)); do
+        local length=${#table[i]}
+        if [ $length -gt $max_width ]; then
+            max_width=$length
+        fi
+    done
+    local column_width=($((max_width + 2))) # Add padding
+    local data_width=$((column_width + 4))  # Account for numbering and extra spaces
+    local padded_column_width=$((data_width + 2)) # Add padding for the table borders
+    local table_width=$((padded_column_width * $columns_count + $columns_count))
+    # Print table header
+    _log "┌$(printf '─%.0s' $(seq 1 $table_width))┐"
+    _log "│$(printf '%-*s' $table_width "$table_title")│"
+    _log "├$(printf '─%.0s' $(seq 1 $table_width))┤"
+    # Print table rows
+    # `+columns_count-1` is to get ceiling of division for part_size
+    local part_size=$((($table_row_count+$columns_count-1)/$columns_count))
+    for((i=0;i<$part_size;i++)); do
+        for((j=0;j<$columns_count;j++)); do
+            local index=$((i+j*part_size))
+            if [ $index -lt ${#table[@]} ]; then
+                printf "| %2d) %-${column_width}s "  "$((index+1))" "${table[$index]}"
+            else
+                printf "| %-${data_width}s " " "
+            fi
+        done
+        printf " |\n";
+    done
+    # Print table footer
+    _log "└$(printf '─%.0s' $(seq 1 $table_width))┘"
+}
+
+_get_config_parameter() {
+    local key="$1"
+    local config_file="$2"
+
+    echo $(sed -n -e "s/^$key=\"*\([a-z0-9_-]\+\)\"*$/\1/p" $config_file 2>/dev/null)
+}
+
+_add_or_replace_json_value() {
+    local key="$1"
+    local value="$2"
+    local settings_file="$3"
+
+    # Create settings file if it doesn't exist
+    if [ ! -f "$settings_file" ]; then
+        mkdir -p "$(dirname "$settings_file")"
+        echo "{\n}" > "$settings_file"
+    fi
+
+    # Add or replace the key-value pair in the settings file
+    if grep -q "\"$key\"" "$settings_file"; then
+        sed -i "s|\"$key\": \".*\"|\"$key\": \"$value\"|" "$settings_file"
+    else
+        sed -i "s|{|\{\n    \"$key\": \"$value\",|" "$settings_file"
+    fi
+}
+
+_get_debugger() {
+    local target="$1"
+    if [ "$target" = "esp32c3" ]; then
+        gdb_path=$(which riscv32-esp-elf-gdb)
+    else
+        gdb_path=$(which xtensa-esp32s3-elf-gdb)
+    fi
+    if [ -z "$gdb_path" ]; then
+        _log "❌ Could not find GDB for target $target. Please ensure the appropriate toolchain is installed."
+        return 1
+    fi
+    echo "$gdb_path"
+}
+
+_update_vscode_settings() {
+    local target="$1"
+
+    local settings_file="$workspace_root/.vscode/settings.json"
+    local relative_path="${PWD#$workspace_root/}"
+    local project_name=$(sed -n -e "s/^project(\([a-z0-9_-]\+\))/\1/p" CMakeLists.txt 2>/dev/null | head -1)
+    if [ -z "$project_name" ]; then
+        _log "❌ Could not find project() in CMakeLists.txt"
+        project_name="unknown-project"
+    else
+        _log "✅ Active project is: $project_name"
+    fi
+
+    _add_or_replace_json_value "idf.target" "${target}" "$settings_file"
+    _add_or_replace_json_value "esp32.activeProject" "$relative_path" "$settings_file"
+    _add_or_replace_json_value "esp32.activeProjectName" "$project_name" "$settings_file"
+    _add_or_replace_json_value "cmake.sourceDirectory" "$PWD/main" "$settings_file"
+
+    local gdb_path=$(_get_debugger "$target")
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+    _add_or_replace_json_value "esp32.gdbPath" "$gdb_path" "$settings_file"
 }

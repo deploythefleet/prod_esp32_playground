@@ -7,8 +7,11 @@
             "command": "idf.py",
             "args": [
                 "qemu",
+                // Additional QEMU arguments to set up networking and GDB server, e.g.:
+                // "--qemu-extra-args",
+                // "-nic model=open_eth,mac=52:54:00:c9:18:27,hostfwd=tcp::1883-:1883",
                 "--gdb",
-                "monitor"
+                "monitor",
             ],
             "options": {
                 "cwd": "${workspaceFolder}/${config:esp32.activeProject}",
